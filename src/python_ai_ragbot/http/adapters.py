@@ -290,12 +290,25 @@ def use_in_asgi(app, chat_handler, voice_handler, prefix=""):
 
 # ---------- Django ----------
 def use_in_django(urlpatterns, chat_handler, voice_handler, prefix=""):
-    from django.http import JsonResponse, HttpResponse
+    from django.http import HttpResponse
     from django.views.decorators.csrf import csrf_exempt
     from django.urls import path
-    import asyncio, json
+    import asyncio, json, inspect
 
     base = prefix or ""
+
+    def _run_async(coro):
+        """Run async handler in sync Django WSGI threads."""
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        if loop.is_running():
+            # In ASGI (async Django), just return coroutine
+            return coro
+        else:
+            return loop.run_until_complete(coro)
 
     @csrf_exempt
     def chat_view(request):
@@ -303,15 +316,25 @@ def use_in_django(urlpatterns, chat_handler, voice_handler, prefix=""):
         method = request.method
         path_ = request.path
         query = dict(request.GET)
-        body = {}
         try:
             body = json.loads(request.body.decode("utf-8"))
         except Exception:
             body = {}
+
         preq = PortableRequest(method, path_, headers, query, body, None, request)
         pres = ResponseWriter(HttpResponse)
-        status, hdrs, chunks = asyncio.get_event_loop().run_until_complete(chat_handler(preq, pres))
-        return HttpResponse(b"".join(chunks), status=status, headers=hdrs)
+
+        result = _run_async(chat_handler(preq, pres))
+
+        # If ASGI async view, result is coroutine → Django handles it
+        if inspect.iscoroutine(result):
+            async def _async_response():
+                status, hdrs, chunks = await result
+                return HttpResponse(b"".join(chunks), status=status, headers=hdrs)
+            return _async_response()
+        else:
+            status, hdrs, chunks = result
+            return HttpResponse(b"".join(chunks), status=status, headers=hdrs)
 
     @csrf_exempt
     def voice_view(request):
@@ -329,10 +352,20 @@ def use_in_django(urlpatterns, chat_handler, voice_handler, prefix=""):
                 body = json.loads(raw.decode("utf-8"))
             except Exception:
                 body = {}
+
         preq = PortableRequest(method, path_, headers, query, body, audio_bytes, request)
         pres = ResponseWriter(HttpResponse)
-        status, hdrs, chunks = asyncio.get_event_loop().run_until_complete(voice_handler(preq, pres))
-        return HttpResponse(b"".join(chunks), status=status, headers=hdrs)
+
+        result = _run_async(voice_handler(preq, pres))
+
+        if inspect.iscoroutine(result):
+            async def _async_response():
+                status, hdrs, chunks = await result
+                return HttpResponse(b"".join(chunks), status=status, headers=hdrs)
+            return _async_response()
+        else:
+            status, hdrs, chunks = result
+            return HttpResponse(b"".join(chunks), status=status, headers=hdrs)
 
     urlpatterns += [
         path(f"{base}/chat", chat_view),

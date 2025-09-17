@@ -2,7 +2,7 @@
 
 `python-ai-ragbot` is a modular and framework-agnostic Python package for building intelligent chatbots and voicebots with **Retrieval-Augmented Generation (RAG)**, powered by **OpenAI** and **LangChain**.
 
-It provides a simple interface to attach ready-made request handlers into popular frameworks (FastAPI, Flask, Django, Starlette, WSGI, ASGI). You can quickly add both text chat (`/chat`) and voice (`/voice`) endpoints into your app.
+It provides a simple interface to attach ready-made request handlers into popular frameworks (FastAPI, Flask). You can quickly add both text chat (`/chat`) and voice (`/voice`) endpoints into your app. For other frameworks we are aggresively working to release the update
 
 ---
 
@@ -78,7 +78,7 @@ async def startup_event():
         "openai": {
             "apiKey": os.getenv("OPENAI_API_KEY"),
             "chat": {"model": "gpt-4o"},
-            "whisper": {"model": "whisper-1"},
+            "stt": {"model": "whisper-1"},
             "tts": {"model": "tts-1-hd", "voice": "nova"},
         }
     })
@@ -100,7 +100,7 @@ Endpoints:
 
 ## Usage with Other Frameworks
 
-### Starlette
+<!-- ### Starlette
 
 ```python
 from starlette.applications import Starlette
@@ -121,7 +121,7 @@ async def startup():
     use_in_starlette(app, bot["chat_handler"], bot["voice_handler"], prefix="/api/bot")
 ```
 
----
+--- -->
 
 ### Flask
 
@@ -147,7 +147,7 @@ if __name__ == "__main__":
 
 ---
 
-### Django
+<!-- ### Django
 
 ```python
 # myproject/urls.py
@@ -167,9 +167,9 @@ bot = init_rag_voice_bot({
 use_in_django(urlpatterns, bot["chat_handler"], bot["voice_handler"], prefix="/api/bot")
 ```
 
----
+--- -->
 
-### Raw WSGI
+<!-- ### Raw WSGI
 
 ```python
 from wsgiref.simple_server import make_server
@@ -215,7 +215,7 @@ if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=3001)
 ```
 
----
+--- -->
 
 ## Configuration
 
@@ -233,7 +233,7 @@ if __name__ == "__main__":
     "apiKey": "...",
     "embeddings": {"model": "text-embedding-3-small"},
     "chat": {"model": "gpt-4o", "temperature": 0.3},
-    "whisper": {"model": "whisper-1"},
+    "stt": {"model": "whisper-1"},
     "tts": {"model": "tts-1-hd", "voice": "nova"}
   },
   "logger": "console"
@@ -277,3 +277,4 @@ my-app/
 - Vector store is in-memory only; data is reloaded on each startup.  
 
 ---
+

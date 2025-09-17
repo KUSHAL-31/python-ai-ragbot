@@ -1,20 +1,20 @@
 import base64
+import io
 from openai import OpenAI
 from ..utils.errors import AppError
 
-async def process_audio(audio_bytes: bytes, cfg) -> str:
+async def process_audio(audio_bytes, cfg):
+    client = OpenAI(api_key=cfg["openai"]["apiKey"])
     try:
-        client = OpenAI(api_key=cfg["openai"]["apiKey"])
-        # OpenAI transcriptions expects file-like; use bytes with a name hint
+        # Wrap bytes with a filename to hint OpenAI about the format
+        audio_file = io.BytesIO(audio_bytes)
+        audio_file.name = "input.webm"
+
         transcription = client.audio.transcriptions.create(
-            file=("audio.webm", audio_bytes, "audio/webm"),
-            model=cfg["openai"]["whisper"]["model"],
-            language=cfg["openai"]["whisper"].get("language", "en"),
-            response_format="verbose_json",
+            model=cfg["openai"].get("stt", {}).get("model", "whisper-1"),
+            file=audio_file
         )
-        # transcription could be dict-like depending on SDK version
-        text = getattr(transcription, "text", None) or transcription.get("text", "")
-        return (text or "").strip()
+        return transcription.text
     except Exception as e:
         raise AppError("OPENAI_TRANSCRIPTION_FAILED", f"Audio transcription failed: {e}", 500)
 
